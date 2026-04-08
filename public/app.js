@@ -357,16 +357,13 @@ function computeWeightedScore(selfA, selfB, judgment) {
   // Drift signal: no drift = positions settled = closer to done
   const driftDone = judgment.drift_detected ? 0 : 100;
 
-  // Weighted formula
-  let score =
+  // Weighted formula - NO HIDDEN OVERRIDES, user threshold is king
+  const score =
     (judgeConv       * WEIGHTS.judgeConvergence) +
     ((selfA || 0)    * WEIGHTS.selfScoreA) +
     ((selfB || 0)    * WEIGHTS.selfScoreB) +
     (noveltyDone     * WEIGHTS.noveltyPenalty) +
     (driftDone       * WEIGHTS.driftBonus);
-
-  // Stale override: if judge says stale, boost convergence significantly
-  if (judgment.stale) score = Math.max(score, 85);
 
   return Math.round(Math.min(100, Math.max(0, score)));
 }
@@ -708,8 +705,9 @@ async function startDebate() {
       const weightedScore = updateConvergence(agreementA, agreementB, judgment);
       if (judgment) showJudgeAssessment(judgment, r, weightedScore);
 
-      if (isConverged(weightedScore)) {
-        setPhase('CONVERGED');
+      const threshold = parseInt(els.convergenceThreshold.value) || 80;
+      if (weightedScore >= threshold) {
+        setPhase(`CONVERGED @ ${weightedScore}% (threshold ${threshold}%)`);
         debate.running = false;
         break;
       }
@@ -717,7 +715,7 @@ async function startDebate() {
 
     // ── Final summary ────────────────────────────────────────
     if (debate.phase === 'DEBATING') {
-      setPhase('MAX ROUNDS');
+      setPhase(`MAX ROUNDS (${debate.config.maxRounds}) REACHED`);
     }
 
     showLoading('Generating final verdict...');
