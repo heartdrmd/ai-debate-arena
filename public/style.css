@@ -1087,26 +1087,277 @@ body {
 /* ── UTILITIES ─────────────────────────────────────────── */
 .hidden { display: none !important; }
 
-/* ── RESPONSIVE ────────────────────────────────────────── */
+/* ── RESPONSIVE — TABLET (≤1024px) ─────────────────────── */
+@media (max-width: 1024px) {
+  #setup-panel, #arena, #verdict {
+    padding: 0 16px;
+  }
+
+  .advanced-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rubric-grid {
+    gap: 12px;
+  }
+}
+
+/* ── RESPONSIVE — MOBILE (≤768px) ──────────────────────── */
 @media (max-width: 768px) {
+  /* Header */
+  #arena-header {
+    padding: 24px 12px 16px;
+  }
+  #arena-header h1 {
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+  }
+  .subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+  }
+
+  /* Setup */
+  #setup-panel {
+    padding: 0 12px 24px;
+  }
+
   .setup-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .vs-divider {
-    padding: 10px 0;
+    padding: 4px 0;
+  }
+  .vs-divider span {
+    font-size: 1.2rem;
   }
 
-  #debate-columns {
-    grid-template-columns: 1fr;
-    gap: 20px;
+  /* Ensure inputs are 16px to prevent iOS auto-zoom on focus */
+  #question,
+  .corner-config select,
+  .advanced-grid select,
+  .advanced-grid input[type="number"],
+  .judge-select-row select,
+  #arenaPassword {
+    font-size: 16px !important;
   }
 
-  .debate-divider { display: none; }
+  /* File drop zone */
+  .drop-zone {
+    padding: 20px 12px;
+  }
+  .drop-title {
+    font-size: 0.75rem;
+  }
+  .drop-hint {
+    font-size: 0.8rem;
+  }
 
+  /* Advanced settings — single column */
   .advanced-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
-  .convergence-bar { width: 120px; }
+  .judge-select-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .judge-plus { display: none; }
+
+  /* Start button full width */
+  .btn-start {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  /* Arena */
+  #arena {
+    padding: 0 12px 24px;
+  }
+
+  .question-banner {
+    font-size: 0.95rem;
+    padding: 14px 16px;
+  }
+
+  /* Status bar — stack elements */
+  #status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .status-left {
+    justify-content: space-between;
+  }
+  .status-center {
+    width: 100%;
+    margin: 0;
+    max-width: none;
+  }
+  .convergence-bar {
+    flex: 1;
+    width: auto;
+  }
+  .cost-live {
+    margin-right: 0;
+    padding-right: 0;
+    border-right: none;
+    justify-content: space-between;
+  }
+  .status-right {
+    justify-content: center;
+  }
+
+  /* Debate columns — stack vertically */
+  #debate-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .debate-divider { display: none; }
+
+  .debate-column {
+    padding: 0;
+  }
+
+  .column-header {
+    position: static;
+    padding: 10px 4px;
+    margin-bottom: 12px;
+  }
+  #labelA, #labelB {
+    font-size: 0.75rem;
+  }
+
+  /* Round cards */
+  .round-card {
+    padding: 12px 14px;
+  }
+  .round-card .content {
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  /* Judge panel */
+  #judge-panel {
+    padding: 16px 14px;
+  }
+
+  .judge-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Rubric — stack side A on top of side B */
+  .rubric-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .dim-label { min-width: 60px; font-size: 0.6rem; }
+  .dim-score { min-width: 22px; font-size: 0.65rem; }
+
+  /* Judge chips wrap nicely */
+  .judge-chip {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+  }
+
+  /* Verdict */
+  #verdict {
+    padding: 0 12px 40px;
+  }
+  #verdictContent {
+    padding: 16px;
+    font-size: 0.9rem;
+  }
+  .verdict-header h2 {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+  }
+
+  /* Loading toast — fit mobile width */
+  #loading {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    max-width: none;
+    padding: 10px 16px;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  #loadingText {
+    font-size: 0.75rem;
+    white-space: normal;
+  }
+
+  /* Buttons — bigger touch targets */
+  .btn-control {
+    width: 44px;
+    height: 44px;
+  }
+  .btn-remove {
+    width: 36px;
+    height: 36px;
+  }
+  .btn-print {
+    padding: 14px 20px;
+    font-size: 0.8rem;
+  }
+
+  /* Password */
+  #arenaPassword {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
+/* ── RESPONSIVE — SMALL PHONE (≤480px) ─────────────────── */
+@media (max-width: 480px) {
+  #arena-header h1 {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+  }
+  .skull { display: none; }
+
+  .subtitle {
+    font-size: 0.65rem;
+  }
+
+  .corner-config {
+    padding: 14px;
+  }
+  .corner-config h3 {
+    font-size: 0.75rem;
+  }
+
+  .round-card .content {
+    font-size: 0.85rem;
+  }
+
+  .question-banner {
+    font-size: 0.9rem;
+    padding: 12px 14px;
+  }
+  .question-banner::before {
+    font-size: 0.6rem;
+  }
+
+  #roundCounter {
+    font-size: 0.8rem;
+  }
+  .phase-badge {
+    font-size: 0.65rem;
+  }
+
+  /* Tighter rubric on tiny screens */
+  .dim-label { min-width: 50px; }
 }
