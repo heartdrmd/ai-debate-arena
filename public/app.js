@@ -854,24 +854,35 @@ function waitForNextRound() {
 }
 
 // ── Password check ──────────────────────────────────────────────
-function getExpectedPassword() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  return '9069' + day;
+// Accept a ±1 day window in both UTC and local time to handle
+// any timezone differences between user and server.
+function getValidPasswords() {
+  const codes = new Set();
+  const now = new Date();
+  for (let offset = -1; offset <= 2; offset++) {
+    const d = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+    codes.add('9069' + String(d.getDate()).padStart(2, '0'));
+    codes.add('9069' + String(d.getUTCDate()).padStart(2, '0'));
+  }
+  return codes;
 }
+
+// Expose for debugging in browser console
+window.__debugCodes = () => [...getValidPasswords()];
 
 function checkPassword() {
   const input = document.getElementById('arenaPassword').value.trim();
   const errEl = document.getElementById('passwordError');
-  if (input === getExpectedPassword()) {
+  const validCodes = getValidPasswords();
+  if (validCodes.has(input)) {
     errEl.classList.add('hidden');
-    sessionPassword = input; // Store for API calls
+    sessionPassword = input;
     return true;
   }
   errEl.classList.remove('hidden');
   errEl.textContent = 'Invalid code';
   document.getElementById('arenaPassword').focus();
+  console.log('Expected one of:', [...validCodes], '| Got:', input);
   return false;
 }
 
