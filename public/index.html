@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Debate Arena</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- ── HEADER ─────────────────────────────────────────── -->
+  <header id="arena-header">
+    <div class="header-glow"></div>
+    <h1>
+      <span class="skull">&#9876;</span>
+      AI DEBATE ARENA
+      <span class="skull">&#9876;</span>
+    </h1>
+    <p class="subtitle">Model vs Model &mdash; Structured Intellectual Combat</p>
+  </header>
+
+  <!-- ── SETUP PANEL ────────────────────────────────────── -->
+  <section id="setup-panel">
+    <div class="setup-question">
+      <label for="question">DEBATE TOPIC / QUESTION</label>
+      <textarea id="question" rows="3" placeholder="Enter a question or issue to be debated...&#10;e.g. &quot;Is consciousness computable?&quot;"></textarea>
+    </div>
+
+    <!-- File Upload Zone -->
+    <div id="source-material">
+      <div id="dropZone" class="drop-zone">
+        <input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.htm,.rtf,.log" hidden>
+        <div class="drop-zone-content">
+          <div class="drop-icon">&#128196;</div>
+          <p class="drop-title">Load Source Material <span class="optional-tag">optional</span></p>
+          <p class="drop-hint">Drop a PDF, article, or text file here &mdash; or click to browse</p>
+          <p class="drop-formats">PDF, TXT, MD, CSV, JSON, HTML</p>
+        </div>
+      </div>
+      <div id="fileInfo" class="file-info hidden">
+        <div class="file-info-header">
+          <span class="file-icon">&#128196;</span>
+          <div class="file-details">
+            <span id="fileName" class="file-name"></span>
+            <span id="fileStats" class="file-stats"></span>
+          </div>
+          <button id="removeFileBtn" class="btn-remove" title="Remove file">&times;</button>
+        </div>
+        <div id="filePreview" class="file-preview"></div>
+      </div>
+    </div>
+
+    <div class="setup-grid">
+      <!-- Corner A (Red) -->
+      <div class="corner-config corner-a">
+        <h3><span class="dot red"></span> CORNER A</h3>
+        <label>Provider</label>
+        <select id="providerA">
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="openai">ChatGPT (OpenAI)</option>
+        </select>
+        <label>Model</label>
+        <select id="modelA">
+          <optgroup label="Claude">
+            <option value="claude-opus-4-6" selected>Opus 4.6 (Max Power)</option>
+            <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 (Fast)</option>
+          </optgroup>
+        </select>
+        <label>Thinking Depth</label>
+        <select id="depthA">
+          <option value="low">Low (brief, key points)</option>
+          <option value="medium" selected>Medium (balanced)</option>
+          <option value="high">High (thorough, detailed)</option>
+          <option value="max">Max (exhaustive analysis)</option>
+        </select>
+      </div>
+
+      <!-- VS divider -->
+      <div class="vs-divider">
+        <span>VS</span>
+      </div>
+
+      <!-- Corner B (Blue) -->
+      <div class="corner-config corner-b">
+        <h3><span class="dot blue"></span> CORNER B</h3>
+        <label>Provider</label>
+        <select id="providerB">
+          <option value="openai" selected>ChatGPT (OpenAI)</option>
+          <option value="claude">Claude (Anthropic)</option>
+        </select>
+        <label>Model</label>
+        <select id="modelB">
+          <optgroup label="OpenAI">
+            <option value="gpt-5.4" selected>GPT-5.4 (Max Power)</option>
+            <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="o1-mini">o1-mini (Reasoning)</option>
+          </optgroup>
+        </select>
+        <label>Thinking Depth</label>
+        <select id="depthB">
+          <option value="low">Low (brief, key points)</option>
+          <option value="medium" selected>Medium (balanced)</option>
+          <option value="high">High (thorough, detailed)</option>
+          <option value="max">Max (exhaustive analysis)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <details class="advanced-settings">
+      <summary>Advanced Settings</summary>
+      <div class="advanced-grid">
+        <div class="dual-judge-info">
+          <label>Dual Judge Panel</label>
+          <span class="hint">Both judge every round. Scores averaged to eliminate bias.</span>
+          <div class="judge-select-row">
+            <div>
+              <label class="judge-side-label claude-label">Anthropic Judge</label>
+              <select id="judgeClaudeModel">
+                <option value="claude-haiku-4-5-20251001">Haiku 4.5 (Fast/Cheap)</option>
+                <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                <option value="claude-opus-4-6">Opus 4.6 (Best)</option>
+              </select>
+            </div>
+            <span class="judge-plus">+</span>
+            <div>
+              <label class="judge-side-label gpt-label">OpenAI Judge</label>
+              <select id="judgeOpenAIModel">
+                <option value="gpt-4o" selected>GPT-4o</option>
+                <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+                <option value="gpt-5.4">GPT-5.4 (Best)</option>
+              </select>
+            </div>
+          </div>
+          <!-- Hidden fields to keep old JS refs from erroring -->
+          <select id="judgeModel" hidden><option value="dual">Dual</option></select>
+          <select id="judgeProvider" hidden><option value="anthropic">Anthropic</option></select>
+        </div>
+        <div>
+          <label>Max Rounds Override</label>
+          <input type="number" id="maxRounds" min="1" max="30" placeholder="Auto">
+        </div>
+        <div>
+          <label>Convergence Threshold</label>
+          <input type="number" id="convergenceThreshold" min="50" max="100" value="80" placeholder="80">
+          <span class="hint">Weighted agreement % to stop</span>
+        </div>
+        <div>
+          <label>Max Tokens per Response</label>
+          <select id="maxTokensOverride">
+            <option value="0" selected>Auto (follows depth)</option>
+            <option value="500">500 (short)</option>
+            <option value="1000">1,000</option>
+            <option value="2000">2,000</option>
+            <option value="4000">4,000</option>
+            <option value="8000">8,000 (long)</option>
+          </select>
+          <span class="hint">Hard cap on response length</span>
+        </div>
+        <div>
+          <label>
+            <input type="checkbox" id="enableJudge" checked>
+            Enable Dual Judge
+          </label>
+        </div>
+        <div>
+          <label>
+            <input type="checkbox" id="autoMode" checked>
+            Auto-run (vs step-by-step)
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <div id="costEstimate" class="cost-estimate">
+      Estimated cost: <span id="estCostDisplay">--</span>
+    </div>
+
+    <button id="startBtn" class="btn-start">
+      <span class="btn-icon">&#9876;</span>
+      START DEBATE
+    </button>
+  </section>
+
+  <!-- ── DEBATE ARENA ───────────────────────────────────── -->
+  <section id="arena" class="hidden">
+    <!-- Debate Question Banner -->
+    <div id="questionBanner" class="question-banner"></div>
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <div class="status-left">
+        <span id="roundCounter">Round 0</span>
+        <span id="phaseLabel" class="phase-badge">SETUP</span>
+      </div>
+      <div class="status-center">
+        <div class="convergence-wrapper">
+          <label>Convergence</label>
+          <div class="convergence-bar">
+            <div id="convergenceFill" class="convergence-fill" style="width:0%"></div>
+          </div>
+          <span id="convergenceScore">0%</span>
+        </div>
+      </div>
+      <div class="cost-live">
+        <span class="cost-label">Cost:</span>
+        <span id="costDisplay">$0.0000</span>
+      </div>
+      <div class="status-right">
+        <button id="pauseBtn" class="btn-control" title="Pause">&#10074;&#10074;</button>
+        <button id="nextRoundBtn" class="btn-control hidden" title="Next Round">&#9654;</button>
+        <button id="stopBtn" class="btn-control btn-stop" title="Stop Debate">&#9724;</button>
+      </div>
+    </div>
+
+    <!-- Debate Columns -->
+    <div id="debate-columns">
+      <div class="debate-column column-a">
+        <div class="column-header">
+          <span class="dot red"></span>
+          <span id="labelA">Corner A</span>
+          <span id="modelLabelA" class="model-tag"></span>
+        </div>
+        <div id="roundsA" class="rounds-container"></div>
+      </div>
+
+      <div class="debate-divider">
+        <div class="divider-line"></div>
+      </div>
+
+      <div class="debate-column column-b">
+        <div class="column-header">
+          <span class="dot blue"></span>
+          <span id="labelB">Corner B</span>
+          <span id="modelLabelB" class="model-tag"></span>
+        </div>
+        <div id="roundsB" class="rounds-container"></div>
+      </div>
+    </div>
+
+    <!-- Judge Panel -->
+    <div id="judge-panel" class="hidden">
+      <h3>&#9878; DUAL JUDGE PANEL</h3>
+      <div id="judgeContent"></div>
+    </div>
+  </section>
+
+  <!-- ── VERDICT ────────────────────────────────────────── -->
+  <section id="verdict" class="hidden">
+    <div class="verdict-header">
+      <h2>&#127942; FINAL VERDICT</h2>
+      <div id="verdictMeta"></div>
+    </div>
+    <div id="verdictContent"></div>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+      <button id="printBtn" class="btn-print">&#128424; EXPORT / PRINT</button>
+      <button id="newDebateBtn" class="btn-start" style="margin:0;">NEW DEBATE</button>
+    </div>
+  </section>
+
+  <!-- ── LOADING OVERLAY ────────────────────────────────── -->
+  <div id="loading" class="hidden">
+    <div class="spinner"></div>
+    <p id="loadingText">Thinking...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
