@@ -4,7 +4,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const path = require('path');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+const pdfParse = require('pdf-parse/lib/pdf-parse.js'); // Bypass broken index.js debug code
 const fs = require('fs');
 
 const app = express();
