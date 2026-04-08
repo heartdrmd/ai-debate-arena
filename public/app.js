@@ -846,8 +846,30 @@ function waitForNextRound() {
   return new Promise(resolve => { nextRoundResolve = resolve; });
 }
 
+// ── Password check ──────────────────────────────────────────────
+function getExpectedPassword() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  return '9069' + day;
+}
+
+function checkPassword() {
+  const input = document.getElementById('arenaPassword').value.trim();
+  const errEl = document.getElementById('passwordError');
+  if (input === getExpectedPassword()) {
+    errEl.classList.add('hidden');
+    return true;
+  }
+  errEl.classList.remove('hidden');
+  errEl.textContent = 'Invalid code';
+  document.getElementById('arenaPassword').focus();
+  return false;
+}
+
 // ── Event listeners ─────────────────────────────────────────────
 els.startBtn.addEventListener('click', () => {
+  if (!checkPassword()) return;
   els.startBtn.disabled = true;
   startDebate().finally(() => { els.startBtn.disabled = false; });
 });

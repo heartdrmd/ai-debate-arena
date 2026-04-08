@@ -964,6 +964,46 @@ body {
 }
 
 /* ── COST DISPLAY ──────────────────────────────────────── */
+/* ── PASSWORD ───────────────────────────────────────────── */
+.password-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+#arenaPassword {
+  width: 200px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  text-align: center;
+  letter-spacing: 3px;
+}
+
+#arenaPassword:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.password-error {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--red);
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
 .cost-estimate {
   text-align: center;
   font-family: 'JetBrains Mono', monospace;
