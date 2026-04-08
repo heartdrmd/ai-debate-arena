@@ -17,8 +17,35 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// ── Password middleware ──────────────────────────────────────────
+// Code format: 9069 + 2-digit day number
+// To handle timezone differences between user (local) and server (UTC),
+// we accept any day within ±1 day of UTC now (4 valid codes at any time).
+function getValidPasswords() {
+  const codes = new Set();
+  const now = new Date();
+  for (let offset = -1; offset <= 2; offset++) {
+    const d = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    codes.add('9069' + day);
+    // Also accept local-time variants
+    const localDay = String(d.getDate()).padStart(2, '0');
+    codes.add('9069' + localDay);
+  }
+  return codes;
+}
+
+function requirePassword(req, res, next) {
+  const provided = req.headers['x-arena-password'] || req.body?.password || '';
+  const validCodes = getValidPasswords();
+  if (!validCodes.has(provided)) {
+    return res.status(401).json({ error: 'Invalid access code' });
+  }
+  next();
+}
+
 // ── Claude API proxy ──────────────────────────────────────────────
-app.post('/api/chat/claude', async (req, res) => {
+app.post('/api/chat/claude', requirePassword, async (req, res) => {
   try {
     const { model, messages, maxTokens, systemPrompt } = req.body;
     const response = await anthropic.messages.create({
@@ -39,7 +66,7 @@ app.post('/api/chat/claude', async (req, res) => {
 });
 
 // ── OpenAI API proxy ──────────────────────────────────────────────
-app.post('/api/chat/openai', async (req, res) => {
+app.post('/api/chat/openai', requirePassword, async (req, res) => {
   try {
     const { model, messages, maxTokens, systemPrompt } = req.body;
     const msgs = [];
@@ -60,7 +87,7 @@ app.post('/api/chat/openai', async (req, res) => {
 });
 
 // ── Judge endpoint (can use either provider) ──────────────────────
-app.post('/api/judge', async (req, res) => {
+app.post('/api/judge', requirePassword, async (req, res) => {
   try {
     const { provider, model, positionA, positionB, question, previousClaims, maxTokens } = req.body;
 
@@ -140,7 +167,7 @@ Respond with EXACTLY this JSON and nothing else:
 });
 
 // ── Final summary endpoint ────────────────────────────────────────
-app.post('/api/summary', async (req, res) => {
+app.post('/api/summary', requirePassword, async (req, res) => {
   try {
     const { provider, model, debateHistory, question, maxTokens } = req.body;
 

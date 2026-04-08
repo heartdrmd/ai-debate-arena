@@ -160,6 +160,13 @@ els.providerA.addEventListener('change', () => updateModelOptions(els.providerA,
 els.providerB.addEventListener('change', () => updateModelOptions(els.providerB, els.modelB));
 els.judgeModel.addEventListener('change', syncJudgeProvider);
 
+// ── Password storage (sent with every API call) ─────────────────
+let sessionPassword = '';
+
+function authHeaders() {
+  return sessionPassword ? { 'X-Arena-Password': sessionPassword } : {};
+}
+
 // ── File upload handling ────────────────────────────────────────
 async function handleFileUpload(file) {
   if (!file) return;
@@ -221,7 +228,7 @@ async function callModel(provider, model, messages, systemPrompt, maxTokens) {
   const endpoint = provider === 'claude' ? '/api/chat/claude' : '/api/chat/openai';
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ model, messages, systemPrompt, maxTokens }),
   });
   if (!res.ok) {
@@ -236,7 +243,7 @@ async function callModel(provider, model, messages, systemPrompt, maxTokens) {
 async function callSingleJudge(provider, model, positionA, positionB, question, previousClaims) {
   const res = await fetch('/api/judge', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       provider, model, positionA, positionB, question,
       previousClaims: previousClaims || null,
@@ -299,7 +306,7 @@ async function callSummary(debateHistory, question) {
   // Use a strong model for the final summary
   const res = await fetch('/api/summary', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       provider: 'anthropic',
       model: 'claude-haiku-4-5-20251001',
@@ -859,6 +866,7 @@ function checkPassword() {
   const errEl = document.getElementById('passwordError');
   if (input === getExpectedPassword()) {
     errEl.classList.add('hidden');
+    sessionPassword = input; // Store for API calls
     return true;
   }
   errEl.classList.remove('hidden');
