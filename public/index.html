@@ -51,6 +51,53 @@
       </div>
     </div>
 
+    <!-- Debate Mode Selector -->
+    <div class="mode-selector">
+      <label>DEBATE MODE</label>
+      <div class="mode-options">
+        <button class="mode-btn active" data-mode="standard" title="Both sides argue their genuine positions">
+          <span class="mode-icon">&#9878;</span>
+          <span class="mode-name">Standard</span>
+          <span class="mode-desc">Fair debate</span>
+        </button>
+        <button class="mode-btn" data-mode="devils" title="One side forced to argue against a position">
+          <span class="mode-icon">&#128520;</span>
+          <span class="mode-name">Devil's Advocate</span>
+          <span class="mode-desc">Attack your belief</span>
+        </button>
+        <button class="mode-btn" data-mode="fringe" title="Both explore unconventional, contrarian positions">
+          <span class="mode-icon">&#127756;</span>
+          <span class="mode-name">Fringe</span>
+          <span class="mode-desc">Contrarian takes</span>
+        </button>
+        <button class="mode-btn" data-mode="steelman" title="Each side strengthens the OTHER's argument">
+          <span class="mode-icon">&#128170;</span>
+          <span class="mode-name">Steelman</span>
+          <span class="mode-desc">Strengthen opponent</span>
+        </button>
+        <button class="mode-btn" data-mode="redteam" title="One side actively attacks and stress-tests the other">
+          <span class="mode-icon">&#128681;</span>
+          <span class="mode-name">Red Team</span>
+          <span class="mode-desc">Find flaws</span>
+        </button>
+      </div>
+
+      <!-- Position + Side picker (shown for Devil's Advocate and Red Team) -->
+      <div id="modeConfig" class="mode-config hidden">
+        <div>
+          <label>Your Position / Claim to Test</label>
+          <textarea id="userPosition" rows="2" placeholder="Enter the position or plan you want tested..."></textarea>
+        </div>
+        <div class="side-picker">
+          <label>Which corner defends your position?</label>
+          <div class="side-picker-btns">
+            <button class="side-btn active" data-side="a"><span class="dot red"></span> Corner A defends</button>
+            <button class="side-btn" data-side="b"><span class="dot blue"></span> Corner B defends</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="setup-grid">
       <!-- Corner A (Red) -->
       <div class="corner-config corner-a">

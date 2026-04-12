@@ -160,6 +160,83 @@ els.providerA.addEventListener('change', () => updateModelOptions(els.providerA,
 els.providerB.addEventListener('change', () => updateModelOptions(els.providerB, els.modelB));
 els.judgeModel.addEventListener('change', syncJudgeProvider);
 
+// ── Debate Mode handling ────────────────────────────────────────
+let selectedMode = 'standard';
+let defenderSide = 'a'; // which corner defends user's position
+
+const MODE_PROMPTS = {
+  standard: {
+    system: 'You are a thoughtful debater. Present well-reasoned arguments.',
+    initial: '', // no special instruction
+    asymmetric: false,
+  },
+  devils: {
+    system_defender: 'You are defending a stated position. Argue FOR it as strongly as possible with evidence and reasoning.',
+    system_attacker: 'You are playing Devil\'s Advocate. Your job is to argue AGAINST the stated position as aggressively and thoroughly as possible. Find every weakness, contradiction, and flaw. Do NOT concede easily. Push hard.',
+    initial_defender: (pos) => `\n\nYOU ARE DEFENDING THIS POSITION: "${pos}"\nArgue FOR it. Build the strongest case possible.`,
+    initial_attacker: (pos) => `\n\nYOU MUST ARGUE AGAINST THIS POSITION: "${pos}"\nTear it apart. Find every weakness. Be relentless.`,
+    asymmetric: true,
+  },
+  fringe: {
+    system: 'You are a contrarian intellectual. Challenge mainstream consensus. Explore unconventional, speculative, minority-view, and paradigm-breaking perspectives. Ask "what if the conventional wisdom is completely wrong?" Do NOT default to safe, mainstream positions.',
+    initial: '\n\nIMPORTANT: Do NOT give the mainstream consensus answer. Explore unconventional, fringe, or contrarian angles. Be bold and speculative.',
+    asymmetric: false,
+  },
+  steelman: {
+    system: 'You are practicing steelmanning. Your job is to make your OPPONENT\'s argument as strong as possible, then respond to that strongest version. Always upgrade their argument before countering it.',
+    initial: '\n\nINSTRUCTION: Before responding, first restate your opponent\'s position in its STRONGEST possible form (steelman it). Then engage with that strongest version, not a weaker strawman.',
+    asymmetric: false,
+  },
+  redteam: {
+    system_defender: 'You are presenting a plan, system, or position for review. Present it clearly and defend it against critiques.',
+    system_attacker: 'You are a red team analyst. Your job is to find EVERY flaw, vulnerability, failure mode, edge case, and risk in the presented plan/position. Think like an adversary. What could go wrong? What was overlooked? Where are the blind spots?',
+    initial_defender: (pos) => `\n\nYOU ARE PRESENTING AND DEFENDING: "${pos}"\nPresent the strongest case and address critiques.`,
+    initial_attacker: (pos) => `\n\nYOU ARE RED-TEAMING THIS: "${pos}"\nFind every flaw, risk, failure mode, and blind spot. Be thorough and adversarial.`,
+    asymmetric: true,
+  },
+};
+
+// Mode button click handlers
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedMode = btn.dataset.mode;
+    const modeConfig = document.getElementById('modeConfig');
+    if (selectedMode === 'devils' || selectedMode === 'redteam') {
+      modeConfig.classList.remove('hidden');
+    } else {
+      modeConfig.classList.add('hidden');
+    }
+  });
+});
+
+// Side picker button handlers
+document.querySelectorAll('.side-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    defenderSide = btn.dataset.side;
+  });
+});
+
+function getModeSystemPrompt(side) {
+  const mode = MODE_PROMPTS[selectedMode];
+  if (!mode) return 'You are a thoughtful debater.';
+  if (!mode.asymmetric) return mode.system;
+  const isDefender = (side === 'a' && defenderSide === 'a') || (side === 'b' && defenderSide === 'b');
+  return isDefender ? mode.system_defender : mode.system_attacker;
+}
+
+function getModeInitialExtra(side) {
+  const mode = MODE_PROMPTS[selectedMode];
+  if (!mode) return '';
+  if (!mode.asymmetric) return mode.initial || '';
+  const pos = document.getElementById('userPosition')?.value?.trim() || '';
+  const isDefender = (side === 'a' && defenderSide === 'a') || (side === 'b' && defenderSide === 'b');
+  return isDefender ? mode.initial_defender(pos) : mode.initial_attacker(pos);
+}
+
 // ── Password storage (sent with every API call) ─────────────────
 let sessionPassword = '';
 
@@ -566,7 +643,15 @@ async function startDebate() {
   els.setupPanel.classList.add('hidden');
   els.arena.classList.remove('hidden');
   els.verdict.classList.add('hidden');
-  document.getElementById('questionBanner').textContent = question;
+  const modeLabels = { standard: 'Standard', devils: "Devil's Advocate", fringe: 'Fringe', steelman: 'Steelman', redteam: 'Red Team' };
+  const modeLabel = modeLabels[selectedMode] || 'Standard';
+  const banner = document.getElementById('questionBanner');
+  banner.textContent = question;
+  if (selectedMode !== 'standard') {
+    banner.setAttribute('data-mode', modeLabel.toUpperCase() + ' MODE');
+  } else {
+    banner.removeAttribute('data-mode');
+  }
   els.roundsA.innerHTML = '';
   els.roundsB.innerHTML = '';
   els.judgePanel.classList.add('hidden');
@@ -595,14 +680,14 @@ async function startDebate() {
     const [resA, resB] = await Promise.all([
       callModel(
         debate.config.providerA, debate.config.modelA,
-        [{ role: 'user', content: initialPrompt(question, depthInstrA) }],
-        'You are a thoughtful debater. Present well-reasoned arguments.',
+        [{ role: 'user', content: initialPrompt(question, depthInstrA) + getModeInitialExtra('a') }],
+        getModeSystemPrompt('a'),
         debate.config.maxTokensA
       ),
       callModel(
         debate.config.providerB, debate.config.modelB,
-        [{ role: 'user', content: initialPrompt(question, depthInstrB) }],
-        'You are a thoughtful debater. Present well-reasoned arguments.',
+        [{ role: 'user', content: initialPrompt(question, depthInstrB) + getModeInitialExtra('b') }],
+        getModeSystemPrompt('b'),
         debate.config.maxTokensB
       ),
     ]);
@@ -648,7 +733,7 @@ async function startDebate() {
       const roundResA = await callModel(
         debate.config.providerA, debate.config.modelA,
         [{ role: 'user', content: debatePrompt(question, debate.lastResponseB, r, depthInstrA) }],
-        'You are a thoughtful debater. Be intellectually honest. Concede good points.',
+        getModeSystemPrompt('a'),
         debate.config.maxTokensA
       );
       typingA.remove();
@@ -665,7 +750,7 @@ async function startDebate() {
       const roundResB = await callModel(
         debate.config.providerB, debate.config.modelB,
         [{ role: 'user', content: debatePrompt(question, debate.lastResponseA, r, depthInstrB) }],
-        'You are a thoughtful debater. Be intellectually honest. Concede good points.',
+        getModeSystemPrompt('b'),
         debate.config.maxTokensB
       );
       typingB.remove();

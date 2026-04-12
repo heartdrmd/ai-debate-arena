@@ -461,6 +461,139 @@ body {
   line-height: 1.5;
 }
 
+/* ── DEBATE MODE SELECTOR ──────────────────────────────── */
+.mode-selector {
+  margin-bottom: 24px;
+}
+
+.mode-selector > label {
+  display: block;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.mode-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.mode-btn:hover {
+  border-color: var(--purple);
+  background: var(--purple)08;
+}
+
+.mode-btn.active {
+  border-color: var(--purple);
+  background: var(--purple)15;
+  box-shadow: 0 0 12px var(--purple)20;
+}
+
+.mode-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.mode-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+.mode-desc {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+/* Mode config (position + side picker) */
+.mode-config {
+  margin-top: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.mode-config label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+#userPosition {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+#userPosition:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.side-picker {
+  margin-top: 12px;
+}
+
+.side-picker-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.side-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.side-btn:hover { border-color: var(--text-dim); }
+
+.side-btn.active {
+  border-color: var(--purple);
+  color: var(--text);
+  background: var(--purple)15;
+}
+
 /* ── ARENA ─────────────────────────────────────────────── */
 #arena {
   max-width: 1200px;
@@ -491,6 +624,20 @@ body {
   letter-spacing: 2px;
   color: var(--gold);
   margin-bottom: 8px;
+}
+
+.question-banner[data-mode]::after {
+  content: attr(data-mode);
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  color: var(--red);
+  background: var(--red)15;
+  border: 1px solid var(--red)30;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-top: 10px;
 }
 
 /* Status Bar */
@@ -1104,6 +1251,22 @@ body {
 
 /* ── RESPONSIVE — MOBILE (≤768px) ──────────────────────── */
 @media (max-width: 768px) {
+  /* Mode selector */
+  .mode-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mode-btn {
+    min-width: 0;
+    padding: 10px 6px;
+  }
+  .mode-name { font-size: 0.6rem; }
+  .mode-desc { font-size: 0.6rem; }
+  .mode-icon { font-size: 1.2rem; }
+  .side-picker-btns { flex-direction: column; }
+  #userPosition { font-size: 16px !important; }
+
   /* Header */
   #arena-header {
     padding: 24px 12px 16px;
