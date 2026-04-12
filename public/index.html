@@ -25,6 +25,15 @@
     <div class="setup-question">
       <label for="question">DEBATE TOPIC / QUESTION</label>
       <textarea id="question" rows="3" placeholder="Enter a question or issue to be debated...&#10;e.g. &quot;Is consciousness computable?&quot;"></textarea>
+      <div class="templates-row">
+        <span class="templates-label">Quick start:</span>
+        <button class="template-btn" data-q="Is consciousness computable, or is there something fundamentally non-algorithmic about subjective experience?">Consciousness</button>
+        <button class="template-btn" data-q="Should AI systems be granted legal personhood if they pass sufficiently advanced cognitive tests?">AI Rights</button>
+        <button class="template-btn" data-q="Is universal basic income economically viable and socially beneficial, or would it create perverse incentives?">UBI</button>
+        <button class="template-btn" data-q="Should humans colonize Mars, or is it a misallocation of resources better spent on Earth's problems?">Mars Colony</button>
+        <button class="template-btn" data-q="Is social media net positive or net negative for democratic societies?">Social Media</button>
+        <button class="template-btn" data-q="Should gene editing (CRISPR) be used on human embryos to eliminate genetic diseases?">Gene Editing</button>
+      </div>
     </div>
 
     <!-- File Upload Zone -->
@@ -219,6 +228,15 @@
             Auto-run (vs step-by-step)
           </label>
         </div>
+        <div class="dimension-weights">
+          <label>Dimension Weights (what matters to you?)</label>
+          <div class="weight-row"><span>Argument</span><input type="range" id="wArgument" min="0" max="3" step="1" value="1"><span class="weight-val">1x</span></div>
+          <div class="weight-row"><span>Evidence</span><input type="range" id="wEvidence" min="0" max="3" step="1" value="1"><span class="weight-val">1x</span></div>
+          <div class="weight-row"><span>Logic</span><input type="range" id="wLogic" min="0" max="3" step="1" value="1"><span class="weight-val">1x</span></div>
+          <div class="weight-row"><span>Novelty</span><input type="range" id="wNovelty" min="0" max="3" step="1" value="1"><span class="weight-val">1x</span></div>
+          <div class="weight-row"><span>Honesty</span><input type="range" id="wHonesty" min="0" max="3" step="1" value="1"><span class="weight-val">1x</span></div>
+          <span class="hint">0x = ignore, 1x = normal, 2x = important, 3x = critical</span>
+        </div>
       </div>
     </details>
 
@@ -297,6 +315,19 @@
       <h3>&#9878; DUAL JUDGE PANEL</h3>
       <div id="judgeContent"></div>
     </div>
+
+    <!-- User Interjection -->
+    <div id="interjectionPanel" class="interjection-panel hidden">
+      <div class="interjection-header">
+        <span>&#128172; YOUR TURN</span>
+        <span class="hint">Inject a point, question, or curveball into the debate</span>
+      </div>
+      <div class="interjection-input-row">
+        <textarea id="interjectionText" rows="2" placeholder="e.g. &quot;What about the economic impact?&quot; or &quot;You're both ignoring X...&quot;"></textarea>
+        <button id="sendInterjectionBtn" class="btn-interject">INJECT</button>
+        <button id="skipInterjectionBtn" class="btn-skip">SKIP</button>
+      </div>
+    </div>
   </section>
 
   <!-- ── VERDICT ────────────────────────────────────────── -->
@@ -306,7 +337,10 @@
       <div id="verdictMeta"></div>
     </div>
     <div id="verdictContent"></div>
+    <div id="shareLink" class="share-link hidden"></div>
     <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+      <button id="continueBtn" class="btn-print">&#9654; ONE MORE ROUND</button>
+      <button id="saveDebateBtn" class="btn-print">&#128279; SAVE &amp; SHARE</button>
       <button id="printBtn" class="btn-print">&#128424; EXPORT / PRINT</button>
       <button id="newDebateBtn" class="btn-start" style="margin:0;">NEW DEBATE</button>
     </div>

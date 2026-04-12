@@ -89,21 +89,29 @@ app.post('/api/chat/openai', requirePassword, async (req, res) => {
 // ── Judge endpoint (can use either provider) ──────────────────────
 app.post('/api/judge', requirePassword, async (req, res) => {
   try {
-    const { provider, model, positionA, positionB, question, previousClaims, maxTokens } = req.body;
+    const { provider, model, positionA, positionB, question, previousClaims, roundNum, maxTokens } = req.body;
 
     const prevClaimsBlock = previousClaims
       ? `\nPREVIOUS ROUND CLAIMS (for drift detection):\n${JSON.stringify(previousClaims)}\n`
       : '';
 
-    const judgePrompt = `You are an expert debate judge performing a rigorous multi-dimensional evaluation.
+    // Blind judging: randomly swap which position is presented first
+    const swapped = Math.random() < 0.5;
+    const first = swapped ? positionB : positionA;
+    const second = swapped ? positionA : positionB;
+    const labelFirst = swapped ? 'SIDE 2' : 'SIDE 1';
+    const labelSecond = swapped ? 'SIDE 1' : 'SIDE 2';
+
+    const judgePrompt = `You are an expert debate judge. You do NOT know which AI model wrote which position. Evaluate purely on merit.
 
 QUESTION: ${question}
+ROUND: ${roundNum || '?'}
 ${prevClaimsBlock}
-POSITION A (current round): ${positionA}
+${labelFirst} (current round): ${first}
 
-POSITION B (current round): ${positionB}
+${labelSecond} (current round): ${second}
 
-Score EACH side on these dimensions (0-100 each). Be harsh and precise — don't inflate scores:
+Score EACH side on these dimensions (0-100 each). Be harsh and precise — don't inflate:
 
 1. ARGUMENT STRENGTH: Are claims well-supported with reasoning? Or vague/hand-wavy?
 2. EVIDENCE QUALITY: Are specific facts, studies, examples cited? Or just opinions?
@@ -114,8 +122,11 @@ Score EACH side on these dimensions (0-100 each). Be harsh and precise — don't
 Then evaluate the DEBATE as a whole:
 6. CONVERGENCE: How much do the two positions substantively agree? (not just tone)
 7. STALENESS: Are the same arguments being recycled across rounds?
+8. TURNING POINT: Identify the single most important moment, concession, or argument that shifted the debate. If nothing significant shifted, say "No turning point this round."
 
-Finally, extract each side's KEY CLAIMS as short bullet points (for tracking drift across rounds).
+Extract each side's KEY CLAIMS as short bullet points (for tracking drift).
+
+IMPORTANT: In your response, use "scores_a" for SIDE 1 and "scores_b" for SIDE 2, regardless of presentation order.
 
 Respond with EXACTLY this JSON and nothing else:
 {
@@ -123,10 +134,11 @@ Respond with EXACTLY this JSON and nothing else:
   "scores_b": { "argument": <0-100>, "evidence": <0-100>, "logic": <0-100>, "novelty": <0-100>, "honesty": <0-100> },
   "convergence_score": <0-100>,
   "stale": <true if same arguments recycled with no new substance>,
-  "claims_a": ["claim 1", "claim 2", "..."],
-  "claims_b": ["claim 1", "claim 2", "..."],
-  "agreements": ["point both sides now agree on", "..."],
-  "remaining_disputes": ["unresolved disagreement", "..."],
+  "turning_point": "description of the key moment this round, or null",
+  "claims_a": ["claim 1", "claim 2"],
+  "claims_b": ["claim 1", "claim 2"],
+  "agreements": ["point both sides now agree on"],
+  "remaining_disputes": ["unresolved disagreement"],
   "drift_detected": <true if positions shifted meaningfully from previous round>,
   "summary": "2-3 sentence assessment of this round"
 }`;
@@ -258,6 +270,28 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     console.error('Upload error:', err.message);
     res.status(500).json({ error: 'Failed to process file: ' + err.message });
   }
+});
+
+// ── Save/Share debates ────────────────────────────────────────────
+const savedDebates = new Map(); // In-memory store (lost on restart)
+
+app.post('/api/debate/save', (req, res) => {
+  const { debate } = req.body;
+  if (!debate) return res.status(400).json({ error: 'No debate data' });
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  savedDebates.set(id, { ...debate, savedAt: new Date().toISOString() });
+  res.json({ id, url: `/debate/${id}` });
+});
+
+app.get('/api/debate/:id', (req, res) => {
+  const d = savedDebates.get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'Debate not found' });
+  res.json(d);
+});
+
+// Serve viewer page for shared debates
+app.get('/debate/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ── Health check ──────────────────────────────────────────────────

@@ -317,13 +317,14 @@ async function callModel(provider, model, messages, systemPrompt, maxTokens) {
   return data;
 }
 
-async function callSingleJudge(provider, model, positionA, positionB, question, previousClaims) {
+async function callSingleJudge(provider, model, positionA, positionB, question, previousClaims, roundNum) {
   const res = await fetch('/api/judge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       provider, model, positionA, positionB, question,
       previousClaims: previousClaims || null,
+      roundNum,
       maxTokens: 2048,
     }),
   });
@@ -332,17 +333,16 @@ async function callSingleJudge(provider, model, positionA, positionB, question, 
 }
 
 // Dual-judge: call both Claude and GPT judges in parallel, merge results
-async function callJudge(positionA, positionB, question, previousClaims) {
+async function callJudge(positionA, positionB, question, previousClaims, roundNum) {
   const judgeModelVal = els.judgeModel.value;
   if (judgeModelVal === 'none') return null;
 
-  // Dual judge config - read from user-selected dropdowns
   const claudeJudge = { provider: 'anthropic', model: document.getElementById('judgeClaudeModel')?.value || 'claude-haiku-4-5-20251001' };
   const gptJudge    = { provider: 'openai',    model: document.getElementById('judgeOpenAIModel')?.value || 'gpt-4o' };
 
   const [claudeResult, gptResult] = await Promise.allSettled([
-    callSingleJudge(claudeJudge.provider, claudeJudge.model, positionA, positionB, question, previousClaims),
-    callSingleJudge(gptJudge.provider, gptJudge.model, positionA, positionB, question, previousClaims),
+    callSingleJudge(claudeJudge.provider, claudeJudge.model, positionA, positionB, question, previousClaims, roundNum),
+    callSingleJudge(gptJudge.provider, gptJudge.model, positionA, positionB, question, previousClaims, roundNum),
   ]);
 
   const cj = claudeResult.status === 'fulfilled' ? claudeResult.value : null;
@@ -368,8 +368,9 @@ async function callJudge(positionA, positionB, question, previousClaims) {
     scores_a: avgDim(cj.scores_a, gj.scores_a),
     scores_b: avgDim(cj.scores_b, gj.scores_b),
     convergence_score: Math.round(((cj.convergence_score || 0) + (gj.convergence_score || 0)) / 2),
-    stale: cj.stale || gj.stale,  // either judge flags stale → stale
+    stale: cj.stale || gj.stale,
     drift_detected: cj.drift_detected || gj.drift_detected,
+    turning_point: cj.turning_point || gj.turning_point,
     claims_a: cj.claims_a || gj.claims_a,
     claims_b: cj.claims_b || gj.claims_b,
     agreements: [...new Set([...(cj.agreements || []), ...(gj.agreements || [])])],
@@ -447,8 +448,17 @@ function computeWeightedScore(selfA, selfB, judgment) {
 
 function dimAvg(scores) {
   if (!scores) return 0;
-  const vals = Object.values(scores).filter(v => typeof v === 'number');
-  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+  // Use user-weighted dimension averages
+  const w = typeof getDimensionWeights === 'function' ? getDimensionWeights() : { argument:1, evidence:1, logic:1, novelty:1, honesty:1 };
+  const dims = ['argument', 'evidence', 'logic', 'novelty', 'honesty'];
+  let totalWeight = 0, totalScore = 0;
+  for (const d of dims) {
+    const weight = w[d] || 1;
+    const score = scores[d] || 0;
+    totalWeight += weight;
+    totalScore += score * weight;
+  }
+  return totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
 }
 
 function updateConvergence(selfA, selfB, judgment) {
@@ -704,6 +714,8 @@ async function startDebate() {
     // ── Phase 2+: Debate rounds ───────────────────────────────
     setPhase('DEBATING');
 
+    let userInterjection = ''; // Stores user's curveball for next round
+
     for (let r = 1; r <= debate.config.maxRounds; r++) {
       if (!debate.running) break;
 
@@ -723,16 +735,38 @@ async function startDebate() {
         if (!debate.running) break;
       }
 
+      // User interjection: show input between rounds (auto mode: after round 1+)
+      if (r > 1 && debate.config.autoMode) {
+        userInterjection = await promptInterjection();
+        if (!debate.running) break;
+      }
+
+      // Build interjection + wildcard extras
+      let extraPrompt = '';
+      if (userInterjection) {
+        extraPrompt += `\n\nIMPORTANT — The audience has interjected: "${userInterjection}"\nYou MUST address this point in your response.`;
+        userInterjection = ''; // consume it
+      }
+
+      // Wildcard injection: if last round's novelty was low, force new angles
+      const lastJudgment = debate.history[debate.history.length - 1]?.judgeResult;
+      if (lastJudgment) {
+        const avgNovelty = ((lastJudgment.scores_a?.novelty || 50) + (lastJudgment.scores_b?.novelty || 50)) / 2;
+        if (avgNovelty < 30) {
+          extraPrompt += '\n\nWILDCARD: The judge noted low novelty. You MUST introduce at least one completely new angle, piece of evidence, or perspective that has NOT been discussed yet. Surprise the audience.';
+        }
+      }
+
       debate.round = r;
       els.roundCounter.textContent = `Round ${r} / ${debate.config.maxRounds}`;
 
       // A responds to B
-      showLoading(`Round ${r}: Corner A analyzing opponent's position...`);
+      showLoading(`Round ${r}: Corner A analyzing...`);
       const typingA = addTypingIndicator(els.roundsA);
 
       const roundResA = await callModel(
         debate.config.providerA, debate.config.modelA,
-        [{ role: 'user', content: debatePrompt(question, debate.lastResponseB, r, depthInstrA) }],
+        [{ role: 'user', content: debatePrompt(question, debate.lastResponseB, r, depthInstrA) + extraPrompt }],
         getModeSystemPrompt('a'),
         debate.config.maxTokensA
       );
@@ -744,12 +778,12 @@ async function startDebate() {
       if (!debate.running) break;
 
       // B responds to A
-      els.loadingText.textContent = `Round ${r}: Corner B analyzing opponent's position...`;
+      els.loadingText.textContent = `Round ${r}: Corner B analyzing...`;
       const typingB = addTypingIndicator(els.roundsB);
 
       const roundResB = await callModel(
         debate.config.providerB, debate.config.modelB,
-        [{ role: 'user', content: debatePrompt(question, debate.lastResponseA, r, depthInstrB) }],
+        [{ role: 'user', content: debatePrompt(question, debate.lastResponseA, r, depthInstrB) + extraPrompt }],
         getModeSystemPrompt('b'),
         debate.config.maxTokensB
       );
@@ -763,10 +797,10 @@ async function startDebate() {
       let judgment = null;
       if (debate.config.enableJudge) {
         try {
-          showLoading('Judge scoring on 5 dimensions...');
+          showLoading('Dual judges scoring...');
           judgment = await callJudge(
             debate.lastResponseA, debate.lastResponseB, question,
-            getPreviousClaims()
+            getPreviousClaims(), r
           );
           hideLoading();
           trackClaims(r, judgment);
@@ -904,6 +938,11 @@ function showJudgeAssessment(judgment, round, weightedScore) {
       <span class="judge-section-label">Remaining Disputes</span>
       ${judgment.remaining_disputes.map(d => '<span class="judge-chip dispute-chip">' + d + '</span>').join('')}
     </div>` : ''}
+    ${judgment.turning_point ? `
+    <div class="judge-section">
+      <span class="judge-section-label">Turning Point</span>
+      <span style="font-size:0.85rem;color:var(--gold);">${judgment.turning_point}</span>
+    </div>` : ''}
     <div class="judge-summary">${(judgment.summary || '').replace(/\n/g, '<br>')}</div>
   `;
   els.judgeContent.innerHTML = html;
@@ -1000,6 +1039,181 @@ els.newDebateBtn.addEventListener('click', resetToSetup);
 // ── Print / Export ──────────────────────────────────────────────
 $('printBtn').addEventListener('click', () => window.print());
 
+// ── User interjection ───────────────────────────────────────────
+let interjectionResolve = null;
+
+function promptInterjection() {
+  return new Promise(resolve => {
+    const panel = $('interjectionPanel');
+    const textEl = $('interjectionText');
+    panel.classList.remove('hidden');
+    textEl.value = '';
+    textEl.focus();
+    interjectionResolve = resolve;
+  });
+}
+
+$('sendInterjectionBtn')?.addEventListener('click', () => {
+  const text = $('interjectionText').value.trim();
+  $('interjectionPanel').classList.add('hidden');
+  if (interjectionResolve) { interjectionResolve(text); interjectionResolve = null; }
+});
+
+$('skipInterjectionBtn')?.addEventListener('click', () => {
+  $('interjectionPanel').classList.add('hidden');
+  if (interjectionResolve) { interjectionResolve(''); interjectionResolve = null; }
+});
+
+// ── Continue debate (one more round) ────────────────────────────
+$('continueBtn')?.addEventListener('click', async () => {
+  if (!debate.history.length) return;
+  debate.running = true;
+  debate.config.maxRounds = debate.round + 1;
+  els.verdict.classList.add('hidden');
+  setPhase('DEBATING');
+
+  const question = debate.config.question;
+  const depthInstrA = (DEPTH_CONFIG[debate.config.depthA] || DEPTH_CONFIG.medium).instruction;
+  const depthInstrB = (DEPTH_CONFIG[debate.config.depthB] || DEPTH_CONFIG.medium).instruction;
+  const r = debate.round + 1;
+  debate.round = r;
+  els.roundCounter.textContent = `Round ${r} (continued)`;
+
+  try {
+    showLoading(`Continued Round ${r}: Corner A...`);
+    const typingA = addTypingIndicator(els.roundsA);
+    const roundResA = await callModel(
+      debate.config.providerA, debate.config.modelA,
+      [{ role: 'user', content: debatePrompt(question, debate.lastResponseB, r, depthInstrA) }],
+      getModeSystemPrompt('a'), debate.config.maxTokensA
+    );
+    typingA.remove();
+    debate.lastResponseA = roundResA.text;
+    addRoundCard(els.roundsA, r, `ROUND ${r} (CONTINUED)`, roundResA.text, parseAgreement(roundResA.text));
+
+    els.loadingText.textContent = `Continued Round ${r}: Corner B...`;
+    const typingB = addTypingIndicator(els.roundsB);
+    const roundResB = await callModel(
+      debate.config.providerB, debate.config.modelB,
+      [{ role: 'user', content: debatePrompt(question, debate.lastResponseA, r, depthInstrB) }],
+      getModeSystemPrompt('b'), debate.config.maxTokensB
+    );
+    typingB.remove();
+    hideLoading();
+    debate.lastResponseB = roundResB.text;
+    addRoundCard(els.roundsB, r, `ROUND ${r} (CONTINUED)`, roundResB.text, parseAgreement(roundResB.text));
+
+    if (debate.config.enableJudge) {
+      showLoading('Dual judges scoring continued round...');
+      const judgment = await callJudge(debate.lastResponseA, debate.lastResponseB, question, getPreviousClaims(), r);
+      hideLoading();
+      trackClaims(r, judgment);
+      debate.history.push({ round: r, sideA: roundResA.text, sideB: roundResB.text, judgeResult: judgment });
+      const ws = updateConvergence(parseAgreement(roundResA.text), parseAgreement(roundResB.text), judgment);
+      showJudgeAssessment(judgment, r, ws);
+    }
+
+    showLoading('Updating verdict...');
+    const transcript = buildDebateTranscript();
+    const summary = await callSummary(transcript, question);
+    hideLoading();
+    showVerdict(summary.text);
+  } catch (err) {
+    hideLoading();
+    alert('Continue error: ' + err.message);
+  }
+});
+
+// ── Save & Share ────────────────────────────────────────────────
+$('saveDebateBtn')?.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/debate/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        debate: {
+          question: debate.config.question,
+          mode: selectedMode,
+          config: debate.config,
+          history: debate.history,
+          verdict: els.verdictContent.innerHTML,
+          meta: els.verdictMeta.textContent,
+          totalCost,
+        },
+      }),
+    });
+    const data = await res.json();
+    const fullUrl = window.location.origin + data.url;
+    const linkEl = $('shareLink');
+    linkEl.classList.remove('hidden');
+    linkEl.innerHTML = `Saved! Share link: <a href="${fullUrl}" target="_blank">${fullUrl}</a> (copied to clipboard)`;
+    navigator.clipboard.writeText(fullUrl).catch(() => {});
+  } catch (err) {
+    alert('Save failed: ' + err.message);
+  }
+});
+
+// ── Debate templates ────────────────────────────────────────────
+document.querySelectorAll('.template-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('question').value = btn.dataset.q;
+    $('question').focus();
+  });
+});
+
+// ── Dimension weight slider labels ──────────────────────────────
+document.querySelectorAll('.weight-row input[type="range"]').forEach(slider => {
+  const valEl = slider.nextElementSibling;
+  const update = () => { valEl.textContent = slider.value + 'x'; };
+  slider.addEventListener('input', update);
+  update();
+});
+
+// ── Read dimension weights for scoring ──────────────────────────
+function getDimensionWeights() {
+  return {
+    argument: parseInt($('wArgument')?.value) || 1,
+    evidence: parseInt($('wEvidence')?.value) || 1,
+    logic:    parseInt($('wLogic')?.value) || 1,
+    novelty:  parseInt($('wNovelty')?.value) || 1,
+    honesty:  parseInt($('wHonesty')?.value) || 1,
+  };
+}
+
+// ── Load shared debate from URL ─────────────────────────────────
+(function checkSharedDebate() {
+  const match = window.location.pathname.match(/^\/debate\/(.+)$/);
+  if (!match) return;
+  const id = match[1];
+  fetch('/api/debate/' + id)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      // Show the debate in read-only mode
+      $('setup-panel').classList.add('hidden');
+      $('arena').classList.remove('hidden');
+      $('questionBanner').textContent = data.question || '';
+      setPhase(data.meta?.split('|')[1]?.trim() || 'SHARED');
+
+      for (const h of (data.history || [])) {
+        const label = h.round === 0 ? 'OPENING STATEMENT' : `ROUND ${h.round}`;
+        addRoundCard(els.roundsA, h.round, label, h.sideA, null);
+        addRoundCard(els.roundsB, h.round, label, h.sideB, null);
+      }
+
+      if (data.verdict) {
+        $('verdict').classList.remove('hidden');
+        $('verdictContent').innerHTML = data.verdict;
+        $('verdictMeta').textContent = data.meta || '';
+      }
+
+      // Hide action buttons for shared view
+      $('continueBtn')?.classList.add('hidden');
+      $('saveDebateBtn')?.classList.add('hidden');
+    })
+    .catch(() => {});
+})();
+
 // ── Cost estimate updater ───────────────────────────────────────
 function refreshEstimate() {
   const est = estimateCost();
@@ -1007,12 +1221,11 @@ function refreshEstimate() {
   if (el) el.textContent = est < 0.01 ? '< $0.01' : '$' + est.toFixed(2);
 }
 
-// Update estimate when any config changes
 ['modelA', 'modelB', 'depthA', 'depthB', 'judgeClaudeModel', 'judgeOpenAIModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', refreshEstimate);
 });
-refreshEstimate(); // initial
+refreshEstimate();
 
 // ── Keyboard shortcut ───────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
